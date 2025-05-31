@@ -48,21 +48,24 @@ pub enum Commands {
 fn main() {
     use twizzler::object::{Object, ObjectBuilder};
 
-    // let mut objIdValue = "22a2764562a36d66b02053b42765cd"; //this needs to be grabbed dynamically from filestacktest
-    // let newObjIdValue = u128::from_str_radix(objIdValue, 16).unwrap();
-    
-    // let actualObjId = ObjID::from(newObjIdValue);
-    let actualObjId: ObjID = 0xDEADBEEF.into();
+    let static_obj: Object<SecCtxMap> =
+    Object::<SecCtxMap>::map(0xDEADBEEF.into(), MapFlags::READ).unwrap();
 
-    let uobj = Object::<SecCtxMap>::map(actualObjId, MapFlags::READ | MapFlags::WRITE).unwrap();
+    let tx_static = static_obj.tx().unwrap();
 
-    let read_tx = uobj.tx().unwrap();
 
-    let write_offset = 0x224; //this needs to be grabbed dynamically from filestacktest
+    let metadata_ptr = tx_static.lea(0, size_of::<(&ObjectHandle, usize)>()).unwrap();
 
-    let read_ptr = read_tx.lea(write_offset as usize, size_of::<Cap>()).unwrap();
 
+    let (dynamic_obj_handle, dynamic_write_offset): (&ObjectHandle, usize) =
+        unsafe { *metadata_ptr.cast::<(&ObjectHandle, usize)>() };
+
+    println!("Retrieved metadata - Dynamic Object Handle: {:?}, Write Offset: {}", dynamic_obj_handle, dynamic_write_offset);
+
+
+    let read_ptr = read_tx.lea(dynamic_write_offset, size_of::<Cap>()).unwrap();
     let persisted_cap: Cap = unsafe { *read_ptr.cast::<Cap>() };
+
 
     println!("Persisted Capability: {:?}", persisted_cap);
 }
